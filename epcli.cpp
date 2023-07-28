@@ -21,13 +21,15 @@
 using namespace std;
 
 //GLOBALS
-vector<int> vIDs;
-double epsilon;
-double phi;
-int maxFoundSize;
-unordered_map<int, int> mpvMap;
-unsigned maxDeg;
+double epsilon; //Epsilon Threshold Value
+double phi; //Phi Threshold Value
+int maxFoundSize; //Size of Largest Found Structure
+unordered_map<int, int> mpvMap; //Maps Maximum Positive Values
+unsigned maxDeg; //Max Degree of nodes in G
 
+/***
+* Writes a string to file
+*/
 void writeToFile(string s, char* filename) {
 	ofstream writeFile;
 	writeFile.open(filename, ios::app);
@@ -38,6 +40,9 @@ void writeToFile(string s, char* filename) {
 	writeFile.close();
 }
 
+/***
+* Writes a string to file
+*/
 void writeToFile(string s, string filename) {
 	ofstream writeFile;
 	writeFile.open(filename, ios::app);
@@ -48,32 +53,26 @@ void writeToFile(string s, string filename) {
 	writeFile.close();
 }
 
-/*
-class SignedEdge {
-	public:
-		int v1;
-		int v2;
-		bool sign;
-};
-*/
-
 //CLASSES
+/***
+* The Node Class
+*/
 class Node {
 	public:
 		int id;
-		vector<int> posNeighbours;
-		vector<int> negNeighbours;
+		vector<int> posNeighbours; //Positive Edges
+		vector<int> negNeighbours; //Negative Edges
 	
-		vector<int> activePosNeighbours;
-		vector<int> activeNegNeighbours;
-		vector<Node*> activeNeighbours;
+		vector<int> activePosNeighbours; //Positive Edges in the Search Space
+		vector<int> activeNegNeighbours; //Negative Edges in the Search Space
+		vector<Node*> activeNeighbours; //Active Neighbours in the Search Space
 	
-		int positiveCoreNumber;
-		int corePosEdges;
-		int coreTotEdges;
-        int negativeLimit;
-        int negativePotential;
-        bool active;
+		int positiveCoreNumber; //PCN
+		int corePosEdges; //Positive Number for PosCore Decomp
+		int coreTotEdges; //Total Number for PosCore Decomp
+        int negativeLimit; //Negative Limit value
+        int negativePotential; //Negative Potential value
+        bool active; //Is the node still active
 	
 		//Functions for inserting neighbour node information
 		void insertNeighbour(int node, bool sign) {
@@ -92,6 +91,7 @@ class Node {
 			negNeighbours.push_back(node);	
 		}
     
+        //Calculate the Negative Potential
         void calculateNP() {
             double lowerVal = floor((double) activePosNeighbours.size() * (1.0 - epsilon));
             negativeLimit = (int) lowerVal;
@@ -108,10 +108,12 @@ class CandidateNode {
 		int posEdges;
         int negativeLimit;
 	
+        //Calculates Epsilon of current state
 		double getEpsilon(int totEdges) {
 			return (double) posEdges / (double) totEdges;
 		}
     
+        //Checks if the node exceeds the NL
         bool checkLimit(int size) {
             if ((size - posEdges) > negativeLimit) {
                 return false;
@@ -152,6 +154,7 @@ class CandidateClique {
 			return nodes.size();
 		}
     
+        //Checks if the current P cup R violates NP
         bool checkTotalNP(int newNP) {
             double target = ceil((double) totEdges * phi);
             if ((newNP + currentNP) < (int) target) {
@@ -166,27 +169,6 @@ class CandidateClique {
 			int posEdgeChange = 0;
 			int negEdgeChange = 0;
 			unordered_map<int, CandidateNode>::iterator cIt;
-            /*
-			for (int i : newNode.activePosNeighbours) {
-				cIt = nodes.find(i);
-				if (cIt != nodes.end()) {
-					posEdgeChange++;
-					cIt->second.posEdges++;
-				}
-			}
-			for (int i : newNode.activeNegNeighbours) {
-				cIt = nodes.find(i);
-				if (cIt != nodes.end()) {
-					negEdgeChange++;
-				}
-			}
-			negEdges = negEdges + negEdgeChange;
-			totEdges = totEdges + negEdgeChange + posEdgeChange;
-			CandidateNode newCNode;
-			newCNode.id = newNode.id;
-			newCNode.posEdges = posEdgeChange;
-			nodes.insert(make_pair(newCNode.id, newCNode));
-            */
             
             
             for (auto a : nodes) {
@@ -206,6 +188,8 @@ class CandidateClique {
 			nodes.insert(make_pair(newCNode.id, newCNode));
         }
     		
+        //Inserts a new node, adjusts the counters and checks if the counters
+        //are all correct s.t. the current state satisfies requirements
         bool adjustAndCheckCounters(Node newNode, int gamma, bool &limitBreaker) {
             
             if (size() + 1 < gamma) {
@@ -218,28 +202,6 @@ class CandidateClique {
             int negEdgeChange = 0;
             int individualSize = size();
             unordered_map<int, CandidateNode>::iterator cIt;
-            
-            /*
-            for (int i : newNode.activePosNeighbours) {
-				cIt = nodes.find(i);
-				if (cIt != nodes.end()) {
-					posEdgeChange++;
-					cIt->second.posEdges++;
-                    if (passable && cIt->second.getEpsilon(individualSize) < epsilon) {
-                        passable = false;
-                    }
-				}
-			}
-			for (int i : newNode.activeNegNeighbours) {
-				cIt = nodes.find(i);
-				if (cIt != nodes.end()) {
-					negEdgeChange++;
-                    if (passable && cIt->second.getEpsilon(individualSize) < epsilon) {
-                        passable = false;
-                    }
-				}
-			}
-            */
             
             for (auto a : nodes) {
                 cIt = nodes.find(a.second.id);
@@ -359,8 +321,8 @@ struct PosCoreComp {
     }
 };
 
-unordered_map<int, Node> nodeMap;
-CandidateClique maxFound;
+unordered_map<int, Node> nodeMap; //Maps IDs to Nodes
+CandidateClique maxFound; //The current largest EPC found
 
 /***
 * Calculates the Minimum Positive Values
@@ -535,44 +497,14 @@ vector<int> getCommonNodes(vector<int> &list1, vector<Node*> &list2) {
 	return intersection;
 }
 
-//vector<Node*> imprGetCommonNodes(vector<Node*> &list1, vector<int> &list2) {
-//    vector<Node*> intersection;
-//    vector<Node*>::iterator l1It = list1.begin();
-//    vector<int>::iterator l2It = list2.begin();
-//    
-//    while (l1It != list1.end() && l2It != list2.end()) {
-//        if ((*l1It)->positiveCoreNumber <= maxFoundSize) {
-//            break;
-//        }
-//        
-//        if ((*l1It)->id < *l2It) {
-//			l1It++;
-//		} else if ((*l1It)->id > *l2It) {
-//			l2It++;
-//		} else {
-//			intersection.push_back(*l1It);
-//			l1It++;
-//			l2It++;
-//		}
-//    }
-//    return intersection;
-//}
-
+/***
+* Gets the common nodes between two sorted lists improved by considering 
+* maxfoundsize
+*/
 vector<Node*> imprGetCommonNodes(vector<Node*> &list1, vector<Node*> &list2, int &np) {
     vector<Node*> intersection;
     vector<Node*>::iterator l1It = list1.begin();
     vector<Node*>::iterator l2It = list2.begin();
-//    cout << "L1: ";
-//    for (Node* na : list1) {
-//        cout << (*na).id << ", ";
-//    }
-//    cout <<"\n";
-//        
-//    cout << "L2: ";
-//    for (Node* na : list2) {
-//        cout << (*na).id << ", ";
-//    }
-//    cout <<"\n";
     
     int id1;
     int id2;
@@ -605,19 +537,12 @@ vector<Node*> imprGetCommonNodes(vector<Node*> &list1, vector<Node*> &list2, int
 			
 		}
     }
-
-//    cout << "Intersection: ";
-//    for (Node* na : intersection) {
-//        cout << (*na).id << ", ";
-//    }
-//    cout <<"\n";
-    
-    
-    
     return intersection;
 }
 
-
+/***
+* Calculates the PCN of a node given the previously found PCN
+*/
 int getPCNforNode(Node node, int k) {
     unordered_map<int, int>::iterator mpvIt; 
     if (node.coreTotEdges < (k + 1)) {
@@ -637,6 +562,9 @@ int getPCNforNode(Node node, int k) {
     return node.coreTotEdges;
 }
 
+/***
+* Decomposes a search space and assigns each node their correct PCN
+*/
 void posCoreDecomposition(vector<Node*> &space, int gamma) {
 	unsigned i = 0;
 	while (i < space.size()) {
@@ -712,72 +640,8 @@ bool satisfiesRequirements(CandidateClique &clique) {
 	return true;
 }
 
-bool counterlessSatisfiesRequirements(CandidateClique &clique) {
-    if (clique.size() <= 1) {
-        return false;
-    }
-    
-    int degree = clique.size() - 1;
-    unordered_map<int, Node>::iterator nIt;
-    int posCounter;
-    int totalNegCounter = 0;
-    int totalCounter = 0;
-    for (auto &it : clique.nodes) {
-        nIt = nodeMap.find(it.second.id);
-        posCounter = 0;
-        for (auto &it2 : clique.nodes) {
-            if (it.first == it2.first) {
-                continue;
-            }
-            if (binary_search(nIt->second.activePosNeighbours.begin(), nIt->second.activePosNeighbours.end(), it2.first)) {
-                posCounter++;
-            } else {
-                totalNegCounter++;
-            }
-            totalCounter++;
-        }
-        if (((double) posCounter / (double) degree) < epsilon) {
-            return false;
-        }
-    }
-    if (((double) totalNegCounter / (double) totalCounter) < phi) {
-        return false;
-    }
-    return true;
-    
-}
-
-
 /***
-* Our baseline recursive BK-inspired algorithm
-*/
-void counterlessBK(CandidateClique gRowing, vector<int> searchsPace) {
-	if (gRowing.size() > maxFoundSize) {
-		if (counterlessSatisfiesRequirements(gRowing)) {
-			maxFoundSize = gRowing.size();
-			maxFound = gRowing;
-		}
-	}
-	
-	if (searchsPace.empty()) {
-		return;
-	}
-	
-	vector<int>::iterator sIt = searchsPace.begin();
-	unordered_map<int, Node>::iterator nIt;
-	for(; sIt!= searchsPace.end();) {
-		nIt = nodeMap.find(*sIt);
-		Node nTemp = nIt->second;
-		CandidateClique gRowing2 = gRowing;
-		gRowing2.insertNode(nTemp);
-		counterlessBK(gRowing2, getCommonNodes(searchsPace, nTemp.activePosNeighbours, nTemp.activeNegNeighbours));
-		sIt = searchsPace.erase(sIt);
-	}
-	return;
-}
-
-/***
-* Our baseline recursive BK-inspired algorithm
+* Our baseline EPBK algorithm
 */
 void baseBK(CandidateClique gRowing, vector<int> searchsPace) {
 	if (gRowing.size() > maxFoundSize) {
@@ -804,38 +668,9 @@ void baseBK(CandidateClique gRowing, vector<int> searchsPace) {
 	return;
 }
 
-void checkBK(CandidateClique gRowing, vector<int> searchsPace) {
-	if (gRowing.size() > maxFoundSize) {
-		if (satisfiesRequirements(gRowing)) {
-			maxFoundSize = gRowing.size();
-			maxFound = gRowing;
-		}
-	}
-	
-	if (searchsPace.empty()) {
-		return;
-	}
-	
-	vector<int>::iterator sIt = searchsPace.begin();
-	unordered_map<int, Node>::iterator nIt;
-    int i = 0;
-	for(; sIt!= searchsPace.end();) {
-        cout << "Loop: " << i << ", ";
-		nIt = nodeMap.find(*sIt);
-		Node nTemp = nIt->second;
-		CandidateClique gRowing2 = gRowing;
-		gRowing2.adjustCounters(nTemp);
-        
-        vector<int> newSearch = getCommonNodes(searchsPace, nTemp.activePosNeighbours, nTemp.activeNegNeighbours);
-        cout << "Node: " << nTemp.id << ", P Size: " << newSearch.size() << 
-            ", Current Best: " << maxFoundSize << "\n";
-		baseBK(gRowing2, newSearch);
-		sIt = searchsPace.erase(sIt);
-        i++;
-	}
-	return;
-}
-
+/***
+* Improved EPBK function
+*/
 void imprBK(CandidateClique gRowing, vector<Node*> searchsPace, bool passable) {
     if (passable) {
         if (gRowing.size() > maxFoundSize) {
@@ -875,6 +710,9 @@ void imprBK(CandidateClique gRowing, vector<Node*> searchsPace, bool passable) {
     return;
 }
 
+/***
+* Baseline search function (MEPCS)
+*/
 void searchBaseline(int query) {
 	unordered_map<int, Node>::iterator nIt = nodeMap.find(query);
 	if (nIt == nodeMap.end()) {
@@ -927,57 +765,12 @@ void searchBaseline(int query) {
 	cout << "Tot Edges: " << maxFound.totEdges << "\n";
 }
 
-void searchCounterlessBaseline(int query) {
-	unordered_map<int, Node>::iterator nIt = nodeMap.find(query);
-	if (nIt == nodeMap.end()) {
-		printf("Invalid Query Node\n");
-		exit(3);
-	}
-	CandidateClique gRowing;
-	CandidateNode qNode;
-	qNode.id = nIt->second.id;
-	qNode.posEdges = 0;
-	gRowing.insertNode(qNode);
-	gRowing.negEdges = 0;
-	gRowing.totEdges = 0;
-
-	vector<int> searchsPace; //Nodes used for search
-	vector<int> checksPace;
-	for (int n : nIt->second.posNeighbours) {
-		searchsPace.push_back(n);
-		nIt->second.activePosNeighbours.push_back(n);
-	}
-	for (int n : nIt->second.negNeighbours) {
-		searchsPace.push_back(n);
-		nIt->second.activeNegNeighbours.push_back(n);
-	}
-	sort(searchsPace.begin(), searchsPace.end());
-	checksPace = searchsPace;
-	checksPace.push_back(nIt->second.id);
-	sort(checksPace.begin(), checksPace.end());
-	
-	unordered_map<int, Node>::iterator uIt;
-	for (int n : nIt->second.activePosNeighbours) {
-		uIt = nodeMap.find(n);
-		uIt->second.activePosNeighbours = getCommonNodes(uIt->second.posNeighbours, checksPace);
-		uIt->second.activeNegNeighbours = getCommonNodes(uIt->second.negNeighbours, checksPace);
-	}
-	
-	for (int n : nIt->second.activeNegNeighbours) {
-		uIt = nodeMap.find(n);
-		uIt->second.activePosNeighbours = getCommonNodes(uIt->second.posNeighbours, checksPace);
-		uIt->second.activeNegNeighbours = getCommonNodes(uIt->second.negNeighbours, checksPace);
-	}
-
-	cout << "Search Space: " << searchsPace.size() << "\n";
-	counterlessBK(gRowing, searchsPace);
-	cout << "Max Found Size: " << maxFoundSize << "\n";
-    
-}
-
+/***
+* Improved search function (IMEPCS)
+*/
 void searchImpr(int q) {
     unordered_map<int, Node>::iterator nIt = nodeMap.find(q);
-    int gamma = calculateMPVs(maxDeg); //TEMP FIX THIS
+    int gamma = calculateMPVs(maxDeg);
     cout << "Gamma: " << gamma << "\n";
 
 	vector<Node*> coreSpace; //Nodes used for search
@@ -1043,14 +836,8 @@ void searchImpr(int q) {
         }
     }
 
-    //Fix This
     PosCoreComp pcc;
     sort(searchsPace.begin(), searchsPace.end(), pcc);
-    
-//    for (Node* na : searchsPace) {
-//        cout << (*na).id << ":" << (*na).positiveCoreNumber << ", ";
-//    }
-//    cout << "\n";
     
     //Build Active Neighbour Lists
     unordered_map<int, Node>::iterator tIt;
@@ -1077,11 +864,6 @@ void searchImpr(int q) {
             }
         }
         sort(uIt->second.activeNeighbours.begin(), uIt->second.activeNeighbours.end(), pcc);
-//        cout << n << ": ";
-//        for (Node* na : uIt->second.activeNeighbours) {
-//            cout << (*na).id << ", ";
-//        }
-//        cout << "\n";
     }
 	
 	for (int n : nIt->second.activeNegNeighbours) {
@@ -1108,11 +890,6 @@ void searchImpr(int q) {
             }
         }
         sort(uIt->second.activeNeighbours.begin(), uIt->second.activeNeighbours.end(), pcc);
-//        cout << n << ": ";
-//        for (Node* na : uIt->second.activeNeighbours) {
-//            cout << (*na).id << ", ";
-//        }
-//        cout << "\n";
     }
     
     //Calculate Negative Potentials
@@ -1158,6 +935,7 @@ void initialiseEdges(char* filename) {
 	char* tempV;
 	int v1, v2, sign;
 	unordered_map<int, Node>::iterator nIt1, nIt2;
+    vector<int> vIDs;
 
 	int posCount = 0;
 	int negCount = 0;
@@ -1250,115 +1028,11 @@ void initialiseQueryList(char* filename, vector<int> &queryList) {
 	cout << "# of Queries: " << queryList.size() << "\n";
 }
 
-void testSubject(int q) {
-    unordered_map<int, Node>::iterator nIt = nodeMap.find(q);
-    int gamma = calculateMPVs(maxDeg); //TEMP FIX THIS
-    cout << "Gamma: " << gamma << "\n";
-        
-        
-    CandidateClique gRowing;
-	CandidateNode qNode;
-	qNode.id = nIt->second.id;
-	qNode.posEdges = 0;
-	gRowing.insertNode(qNode);
-	gRowing.negEdges = 0;
-	gRowing.totEdges = 0;
-
-	vector<Node*> coreSpace; //Nodes used for search
-    vector<int> checksPace;    
-    coreSpace.push_back(&nIt->second);
-    checksPace.push_back(nIt->second.id);
-	for (int n : nIt->second.posNeighbours) {
-		nIt->second.activePosNeighbours.push_back(n);
-        checksPace.push_back(n);
-	}
-	for (int n : nIt->second.negNeighbours) {
-		nIt->second.activeNegNeighbours.push_back(n);
-        checksPace.push_back(n);
-	}
-	
-    sort(checksPace.begin(), checksPace.end());
-    
-	unordered_map<int, Node>::iterator uIt;
-	for (int n : nIt->second.activePosNeighbours) {
-		uIt = nodeMap.find(n);
-		uIt->second.activePosNeighbours = getCommonNodes(uIt->second.posNeighbours, checksPace);
-		uIt->second.activeNegNeighbours = getCommonNodes(uIt->second.negNeighbours, checksPace);
-        coreSpace.push_back(&uIt->second);
-	}
-	
-	for (int n : nIt->second.activeNegNeighbours) {
-		uIt = nodeMap.find(n);
-		uIt->second.activePosNeighbours = getCommonNodes(uIt->second.posNeighbours, checksPace);
-		uIt->second.activeNegNeighbours = getCommonNodes(uIt->second.negNeighbours, checksPace);
-        coreSpace.push_back(&uIt->second);
-	}
-    
-    posCoreDecomposition(coreSpace, gamma);
-    
-    
-    vector<int> searchsPace; //Nodes used for search
-	checksPace.clear();
-    
-    vector<int>::iterator killIt = nIt->second.activePosNeighbours.begin();
-    for (; killIt != nIt->second.activePosNeighbours.end(); ) {
-        uIt = nodeMap.find(*killIt);
-        if (uIt->second.positiveCoreNumber == 0) {
-            killIt = nIt->second.activePosNeighbours.erase(killIt);
-        } else {
-            searchsPace.push_back(*killIt);
-            killIt++;
-        }
-    }
-    
-    killIt = nIt->second.activeNegNeighbours.begin();
-    for (; killIt != nIt->second.activeNegNeighbours.end(); ) {
-        uIt = nodeMap.find(*killIt);
-        if (uIt->second.positiveCoreNumber == 0) {
-            killIt = nIt->second.activeNegNeighbours.erase(killIt);
-        } else {
-            searchsPace.push_back(*killIt);
-            killIt++;
-        }
-    }
-        
-    sort(searchsPace.begin(), searchsPace.end());
-	checksPace = searchsPace;
-	checksPace.push_back(nIt->second.id);
-	sort(checksPace.begin(), checksPace.end());
-    
-	for (int n : nIt->second.activePosNeighbours) {
-		uIt = nodeMap.find(n);
-		uIt->second.activePosNeighbours = getCommonNodes(uIt->second.posNeighbours, checksPace);
-		uIt->second.activeNegNeighbours = getCommonNodes(uIt->second.negNeighbours, checksPace);
-	}
-	
-	for (int n : nIt->second.activeNegNeighbours) {
-		uIt = nodeMap.find(n);
-		uIt->second.activePosNeighbours = getCommonNodes(uIt->second.posNeighbours, checksPace);
-		uIt->second.activeNegNeighbours = getCommonNodes(uIt->second.negNeighbours, checksPace);
-	}
-    
-	cout << "Post Prune Search Space: " << searchsPace.size() << "\n";
-    /*
-	maxFoundSize = 0;
-	baseBK(gRowing, searchsPace);
-	cout << "Max Found Size: " << maxFoundSize << "\n";
-	for (auto it : maxFound.nodes) {
-		cout << it.second.id << ": " << it.second.posEdges << "\n";
-	}
-	cout << "Neg Edges: " << maxFound.negEdges << "\n";
-	cout << "Tot Edges: " << maxFound.totEdges << "\n";
-    */
-}
-
 /***
 * argv[0] = epcli
 * argv[1] = function
-		1: Single Search Baseline
-        2: Single Search Counterless Baseline
-		10: Batch Search Baseline
-		99: Useless Function
+		1: Single Search Baseline (MEPCS)
+        2: Single Search Improved (IMEPCS)
 * argv[2] = EDGELIST
 * argv[3] = Query Node/QUERYFILE
 * argv[4] = Epsilon Value (Range [0, 1])
@@ -1382,15 +1056,7 @@ int main(int argc, char *argv[]) {
 	if (function == 1) {
 		searchBaseline(stoi(argv[3]));
 	} else if (function == 2) {
-        searchCounterlessBaseline(stoi(argv[3]));  
-    } else if (function == 10) {
-		//Do a query for each node in the query file
-		vector<int> queryList;
-		initialiseQueryList(argv[3], queryList);
-	} else if (function == 3) {
-        searchImpr(stoi(argv[3]));
-    } else if (function == 99) {
-        testSubject(stoi(argv[3])); 
+        searchImpr(stoi(argv[3]));  
     } else {
 		printf("Invalid Function Call\n");
 		exit(1);
@@ -1409,3 +1075,4 @@ int main(int argc, char *argv[]) {
     }
 
 }
+
